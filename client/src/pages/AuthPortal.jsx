@@ -13,7 +13,16 @@ export default function AuthPortal() {
     e.preventDefault();
     console.log(`Submitting ${isLogin ? 'Login' : 'Signup'} for ${displayRole}`);
     // Temporarily bypass backend to test the UI flow
-    navigate('/dashboard'); 
+    // 🚨 THE SMART REDIRECT LOGIC for all 4 roles
+if (role === 'ngo') {
+    navigate('/ngo'); // 🗺️ Goes to the Split-Screen Command Center
+} else if (role === 'volunteer') {
+    navigate('/driver'); // 🚑 Goes to the Mobile Volunteer/Driver Terminal
+} else if (role === 'clinic') {
+    navigate('/clinic'); // 🏥 (Note: We still need to build ClinicDash.jsx later!)
+} else {
+    navigate('/dashboard'); // 📸 Default for reporters reporting animals
+}
   };
 
   return (

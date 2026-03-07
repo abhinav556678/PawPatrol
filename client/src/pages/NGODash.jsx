@@ -1,98 +1,166 @@
-import { useState, useContext, useEffect } from 'react';
-import { SocketContext } from '../context/SocketContext';
-import { Truck, CheckCircle, MapPin, Phone, Bell } from 'lucide-react';
+import React, { useState, useEffect, useContext } from 'react';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import { SocketContext } from '../context/SocketContext.jsx'; 
+import { Bell } from 'lucide-react';
 
-const NGODash = () => {
+const NgoDash = () => {
   const socket = useContext(SocketContext);
-  const [reports, setReports] = useState([]); // List of incoming emergencies
-  const [activeRescue, setActiveRescue] = useState(null); // The one she is currently helping
+  const [drivers, setDrivers] = useState([]);
+  const [reports, setReports] = useState([]); 
 
+  // 1. Initial Data Fetch (Runs once on mount)
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const driverRes = await fetch('http://10.124.59.40:5001/api/drivers');
+        const driverData = await driverRes.json();
+        setDrivers(driverData);
+
+        const reportRes = await fetch('http://10.124.59.40:5001/api/reports');
+        const reportData = await reportRes.json();
+        setReports(reportData);
+      } catch (error) {
+        console.error("Failed to fetch initial data:", error);
+      }
+    };
+    fetchData();
+  }, []);
+
+  // 2. Real-Time Socket Listeners
   useEffect(() => {
     if (!socket) return;
 
-    // Listen for new reports from Abhinav or others
+    // A. Listen for new emergency reports
     socket.on('newRescueReport', (data) => {
       const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-      audio.play();
+      audio.play().catch(e => console.log("Audio play blocked:", e)); 
       setReports((prev) => [data, ...prev]);
     });
 
-    return () => socket.off('newRescueReport');
-  }, [socket]);
+    // B. Listen for moving ambulances (The Live Tracker)
+    socket.on('updateMap', (gpsData) => {
+      console.log("📍 NGO Map received move for:", gpsData.driverId);
 
-  const acceptRescue = (report) => {
-    setActiveRescue({ ...report, status: 'Accepted' });
-    updateStatus('Accepted', 'NGO is starting the rescue', report.id);
-  };
+      setDrivers(prevDrivers => {
+        // Check if the driver already exists in our local list
+        const driverExists = prevDrivers.find(d => d._id === gpsData.driverId || d.id === gpsData.driverId);
 
-  const updateStatus = async (newStatus, note, id = activeRescue?.id) => {
-    const rescueId = id || activeRescue?.id;
-    
-    await fetch(`http://127.0.0.1:5001/api/rescues/${rescueId}/update`, {
-      method: 'PUT',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${JSON.parse(localStorage.getItem('user')).token}` 
-      },
-      body: JSON.stringify({ status: newStatus, note })
+        if (driverExists) {
+          // Update the existing driver's coordinates
+          return prevDrivers.map(d => 
+            (d._id === gpsData.driverId || d.id === gpsData.driverId)
+              ? { ...d, currentLocation: { lat: gpsData.lat, lng: gpsData.lng } }
+              : d
+          );
+        } else {
+          // GHOST FIX: If driver isn't in list (like 'ambulance-1'), add them dynamically!
+          return [...prevDrivers, {
+            _id: gpsData.driverId,
+            name: "Active Ambulance (Live)",
+            currentLocation: { lat: gpsData.lat, lng: gpsData.lng },
+            phone: "Live Tracking"
+          }];
+        }
+      });
     });
 
-    if (activeRescue) setActiveRescue({ ...activeRescue, status: newStatus });
-    if (newStatus === 'Resolved') setActiveRescue(null); // Clear after completion
-  };
+    // Cleanup listeners on unmount
+    return () => {
+      socket.off('newRescueReport');
+      socket.off('updateMap'); 
+    };
+  }, [socket]);
 
   return (
-    <div className="min-h-screen bg-white p-6 max-w-2xl mx-auto">
-      <h1 className="text-3xl font-bold mb-8 flex items-center gap-3 italic">
-        <Bell className="text-primary animate-swing" /> NGO Dispatch
-      </h1>
+    <div className="min-h-screen bg-gray-100 p-8">
+      <div className="max-w-7xl mx-auto">
+        <header className="mb-6 flex justify-between items-center bg-white p-6 rounded-xl shadow-md border-t-4 border-orange-500">
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+            <Bell className="text-orange-500 animate-pulse" /> Paws & Claws Command Center
+          </h1>
+          <div className="text-lg font-bold text-green-600 bg-green-50 px-4 py-2 rounded-full border border-green-200">
+            {drivers.length} Ambulances Active
+          </div>
+        </header>
 
-      {activeRescue ? (
-        /* 🚨 ACTIVE MISSION VIEW */
-        <div className="space-y-6 border-2 border-primary p-8 rounded-3xl bg-orange-50/30">
-          <div className="flex justify-between items-start">
-            <div>
-              <h2 className="text-2xl font-black text-gray-900">{activeRescue.animalType} Rescue</h2>
-              <p className="text-gray-600 mt-1">{activeRescue.description}</p>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          {/* LEFT SIDE: The Live Map */}
+          <div className="lg:col-span-2 bg-white p-4 rounded-xl shadow-lg border-2 border-gray-200">
+            <div className="h-[600px] w-full rounded-lg overflow-hidden relative">
+              <MapContainer center={[12.8230, 80.0450]} zoom={15} className="h-full w-full z-0">
+                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                {drivers.map((driver) => (
+                  <Marker 
+                    key={driver._id} 
+                    position={[
+                        driver.currentLocation?.lat || 12.8230,
+                        driver.currentLocation?.lng || 80.0450
+                    ]}
+                  >
+                    <Popup>
+                      <div className="font-bold text-lg">{driver.name}</div>
+                      <div className="text-sm text-gray-600">📞 {driver.phone}</div>
+                    </Popup>
+                  </Marker>
+                ))}
+              </MapContainer>
             </div>
           </div>
 
-          <div className="grid gap-3">
-            <button onClick={() => updateStatus('Accepted', 'En route')} className={`p-4 rounded-xl font-bold flex items-center justify-center gap-2 ${activeRescue.status === 'Accepted' ? 'bg-primary text-white' : 'bg-white border border-gray-200 text-gray-400'}`}>
-              <Truck size={20} /> I'm Driving
-            </button>
-            <button onClick={() => updateStatus('Arrived', 'At location')} className={`p-4 rounded-xl font-bold flex items-center justify-center gap-2 ${activeRescue.status === 'Arrived' ? 'bg-primary text-white' : 'bg-white border border-gray-200 text-gray-400'}`}>
-              <MapPin size={20} /> At Scene
-            </button>
-            <button onClick={() => updateStatus('Resolved', 'Safe')} className="p-4 rounded-xl font-bold bg-green-500 text-white mt-4 shadow-lg">
-              <CheckCircle size={20} /> Animal Secured
-            </button>
-          </div>
-        </div>
-      ) : (
-        /* 📜 INCOMING FEED VIEW */
-        <div className="space-y-4">
-          {reports.length === 0 ? (
-            <div className="text-center py-20 border-2 border-dashed border-gray-100 rounded-3xl text-gray-300">
-              Scanning Kattankulathur for emergencies...
-            </div>
-          ) : (
-            reports.map((r, i) => (
-              <div key={i} className="p-5 border-2 border-orange-100 rounded-2xl flex justify-between items-center shadow-sm">
-                <div>
-                  <h3 className="font-bold text-lg">{r.animalType}</h3>
-                  <p className="text-sm text-gray-500 truncate w-40">{r.description}</p>
+          {/* RIGHT SIDE: The Emergency Feed */}
+          <div className="bg-white p-6 rounded-xl shadow-lg border-2 border-gray-200 flex flex-col h-[600px] overflow-y-auto">
+            <h2 className="text-xl font-black text-gray-800 mb-4 border-b pb-2">Live Emergencies</h2>
+            
+            <div className="space-y-4">
+              {reports.length === 0 ? (
+                <div className="text-center py-20 border-2 border-dashed border-gray-200 rounded-2xl text-gray-400">
+                  Scanning for emergencies...
                 </div>
-                <button onClick={() => acceptRescue(r)} className="bg-primary text-white px-6 py-2 rounded-full font-bold text-sm">
-                  Accept
-                </button>
-              </div>
-            ))
-          )}
+              ) : (
+                reports.map((report) => (
+                  <div key={report._id} className="p-4 border-2 border-red-100 bg-red-50 rounded-xl flex flex-col gap-3 shadow-sm">
+                    <div>
+                      <h3 className="font-bold text-lg text-red-700">{report.animalType || "Emergency"}</h3>
+                      <p className="text-sm text-gray-700 line-clamp-2">{report.description}</p>
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <select 
+                        id={`driver-select-${report._id}`}
+                        className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+                      >
+                        <option value="">Select Ambulance...</option>
+                        {drivers.map(d => (
+                          <option key={d._id} value={d._id}>{d.name}</option>
+                        ))}
+                        <option value="ambulance-1">Ambulance 1 (Demo)</option> 
+                      </select>
+                      
+                      <button 
+                        onClick={() => {
+                          const selectedDriver = document.getElementById(`driver-select-${report._id}`).value;
+                          if (!selectedDriver) return alert("Pick a driver first!");
+                          
+                          socket.emit('assignRescue', { driverId: selectedDriver, report: report });
+                          setReports(prev => prev.filter(r => r._id !== report._id));
+                        }} 
+                        className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-bold shadow-md transition whitespace-nowrap"
+                      >
+                        Assign
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
         </div>
-      )}
+      </div>
     </div>
   );
 };
 
-export default NGODash;
+export default NgoDash;

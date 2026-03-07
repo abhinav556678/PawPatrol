@@ -10,12 +10,12 @@
   },
   "dependencies": {
     "leaflet": "latest",
-    "lucide-react": "latest",
+    "lucide-react": "^0.577.0",
     "react": "latest",
     "react-dom": "latest",
     "react-leaflet": "latest",
     "react-router-dom": "latest",
-    "socket.io-client": "latest"
+    "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "latest",

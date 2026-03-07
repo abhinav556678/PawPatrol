@@ -3,6 +3,10 @@ import RoleSelection from './pages/RoleSelection';
 import AuthPortal from './pages/AuthPortal';
 import ReporterDash from './pages/ReporterDash';
 
+// 🚨 FIXED IMPORTS:
+import NgoDash from './pages/NgoDash'; 
+import DriverDash from './pages/DriverDash';
+
 export default function App() {
   return (
     <Router>
@@ -15,6 +19,12 @@ export default function App() {
         
         {/* Step 3: The actual app */}
         <Route path="/dashboard" element={<ReporterDash />} />
+
+        {/* 🚨 ADDED THE NGO ROUTE */}
+        <Route path="/ngo" element={<NgoDash />} />
+
+        {/* The Driver App */}
+        <Route path="/driver" element={<DriverDash />} />
       </Routes>
     </Router>
   );
