@@ -2,9 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
-
-// 🚨 IMPORT THE NEW FUNCTIONS HERE
-const { createReport, getAllReports, updateReportStatus } = require('../controllers/reportController');
+const reportController = require('../controllers/reportController');
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => { cb(null, 'uploads/'); },
@@ -12,11 +10,14 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// The door to create a new report (Reporter app)
-router.post('/', upload.single('photo'), createReport);
+// 1. Create a new report (Reporter app)
+router.post('/', upload.single('photo'), reportController.createReport);
 
-// 🚨 THE TWO NEW DOORS FOR THE NGO APP
-router.get('/', getAllReports); 
-router.put('/:id/status', updateReportStatus); 
+// 2. Fetch all reports (NGO Dashboard)
+router.get('/', reportController.getAllReports); 
+
+// 3. Update report status (NGO Dashboard)
+// Changed from '/:id/status' to '/:id' to match the Controller we just wrote
+router.patch('/:id', reportController.updateReportStatus); 
 
 module.exports = router;

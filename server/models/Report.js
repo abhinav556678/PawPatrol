@@ -7,17 +7,20 @@ const reportSchema = new mongoose.Schema({
         lat: { type: Number, required: true },
         lng: { type: Number, required: true }
     },
-    photoUrl: { type: String, default: '' },
-    status: { type: String, enum: ['Pending', 'Dispatched', 'Resolved'], default: 'Pending' },
-    
-    // 🚨 NEW: This tracks which driver is currently on their way
-    assignedDriver: { 
-        type: mongoose.Schema.Types.ObjectId, 
-        ref: 'Driver', 
-        default: null 
+    photoUrl: { type: String },
+    status: { 
+        type: String, 
+        default: 'Pending', 
+        enum: ['Pending', 'Dispatched', 'Arrived', 'Resolved'] 
     },
-    
-    createdAt: { type: Date, default: Date.now }
-});
+    // 🚨 NEW AI FIELDS
+    priority: { 
+        type: Number, 
+        default: 5 // AI will overwrite this between 1-10
+    },
+    aiSummary: { 
+        type: String // Stores the "HIGH URGENCY" or "Standard" notes
+    }
+}, { timestamps: true });
 
 module.exports = mongoose.model('Report', reportSchema);
