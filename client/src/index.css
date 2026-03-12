@@ -8,3 +8,18 @@
   border-radius: 0.75rem;
   z-index: 10;
 }
+/* src/index.css */
+:root {
+    --brand-brown: #854D0E;      /* Rich Earthy Brown */
+    --brand-tan: #B47B49;        /* Soft Button Brown */
+    --brand-cream: #FFFBF7;      /* Warm Off-White */
+    --brand-dark: #44403c;       /* Soft Charcoal for text */
+    --brand-border: #E7E5E4;     /* Subtle light border */
+}
+
+/* Ensure the body uses the warm background */
+.home-bg {
+    background-color: white; /* Or var(--brand-cream) for even more warmth */
+    color: var(--brand-dark);
+    font-family: 'Inter', sans-serif;
+}

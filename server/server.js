@@ -36,16 +36,34 @@ io.on('connection', (socket) => {
     });
 
     // 1. Listen for the NGO assigning a rescue
-    socket.on('assignRescue', (data) => {
+    socket.on('assignRescue', async (data) => {
         console.log(`Rescue assigned to Driver: ${data.driverId}`);
-        // Broadcast it to the drivers. The correct driver will catch it!
+        // Broadcast to drivers
         io.emit('rescueAssigned', data);
+        // Update DB status to Dispatched & notify reporter
+        try {
+            const Report = require('./models/Report');
+            await Report.findByIdAndUpdate(data.report._id, { status: 'Dispatched' });
+            io.emit('rescueStatusUpdate', { reportId: data.report._id, status: 'Dispatched' });
+        } catch (err) { console.error('Failed to update dispatch status:', err); }
     });
 
     // 2. Listen for the Real GPS coming from the driver's phone
     socket.on('driverLocationUpdate', (data) => {
         // Broadcast the new coordinates back to the NGO map
         io.emit('updateMap', data);
+    });
+
+    // 3. Relay status updates from driver to all clients (reporter sees it)
+    socket.on('rescueStatusUpdate', (data) => {
+        console.log(`Status update: Report ${data.reportId} → ${data.status}`);
+        io.emit('rescueStatusUpdate', data);
+    });
+
+    // 4. Relay follow-up reports from NGO to reporters
+    socket.on('caseFollowUp', (data) => {
+        console.log(`Follow-up on case ${data.reportId}`);
+        io.emit('caseFollowUp', data);
     });
 
     socket.on('disconnect', () => {

@@ -20,6 +20,10 @@ const reportSchema = new mongoose.Schema({
     },
     aiSummary: { 
         type: String // Stores the "HIGH URGENCY" or "Standard" notes
+    },
+    followUpReport: {
+        type: String,
+        default: ''
     }
 }, { timestamps: true });
 

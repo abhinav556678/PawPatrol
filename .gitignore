@@ -16,5 +16,5 @@ dist/
 .DS_Store
 
 # Copy this to .env and fill in your real key
-GEMINI_API_KEY=
+GEMINI_API_KEY=AIzaSyD3o7vmRVKVOQWnevRyoa-BtEEeCbHHLOY
 PORT=5001
